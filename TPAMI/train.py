@@ -224,10 +224,18 @@ def main():
 
             if total_step % 500 == 0 and total_step != 0:
                 logging.info('train %03d %f', epoch, loss)
+                
+                # 先保存权重，防止验证过程出错导致权重丢失
+                utils.save(model, os.path.join(model_path, 'weights_%d_%d.pt' % (epoch, total_step)))
+                
                 model.eval()
                 with torch.no_grad():
-                    for _, (input, image_name) in enumerate(test_queue):
-                        input = Variable(input, volatile=True).cuda()
+                    for i, (input, image_name) in enumerate(test_queue):
+                        # 只保存前 1 张图片用于可视化，避免磁盘爆满
+                        if i >= 1:
+                            break
+                            
+                        input = input.cuda()
                         image_name = image_name[0].split('/')[-1].split('.')[0]
                         _, ref_list, _, _= model(input)
                         for ii in range(1):
@@ -236,7 +244,6 @@ def main():
                             save_images(ref_list[ii], u_path)
                 model.train()
                 logging.info('train-epoch %03d %f', epoch, np.average(losses))
-                utils.save(model, os.path.join(model_path, 'weights_%d_%d.pt' % (epoch, total_step)))
 
 
 
