@@ -12,18 +12,21 @@ from model import Finetunemodel
 from multi_read_data import MemoryFriendlyLoader
 
 parser = argparse.ArgumentParser("SCI")
-parser.add_argument('--data_path', type=str, default='./data',
-                    help='location of the data corpus')
-parser.add_argument('--save_path', type=str, default='./results', help='location of the data corpus')
-parser.add_argument('--model', type=str, default='./weights/weights_1_3500.pt', help='location of the data corpus')
+parser.add_argument('--data_path', type=str, default='./data/raw',
+                    help='location of the raw data')
+parser.add_argument('--save_path', type=str, default='./results', help='location to save results')
+parser.add_argument('--model', type=str, default='./weights/weights_1_3500.pt', help='model weights path')
 parser.add_argument('--gpu', type=int, default=0, help='gpu device id')
 parser.add_argument('--seed', type=int, default=2, help='random seed')
+parser.add_argument('--black_level', type=int, default=512, help='black level for raw images')
+parser.add_argument('--white_level', type=int, default=16383, help='white level for raw images')
 
 args = parser.parse_args()
 save_path = args.save_path
 os.makedirs(save_path, exist_ok=True)
 
-TestDataset = MemoryFriendlyLoader(img_dir=args.data_path, task='test')
+TestDataset = MemoryFriendlyLoader(img_dir=args.data_path, task='test',
+                                   black_level=args.black_level, white_level=args.white_level)
 
 test_queue = torch.utils.data.DataLoader(
     TestDataset, batch_size=1,
@@ -31,9 +34,19 @@ test_queue = torch.utils.data.DataLoader(
 
 
 def save_images(tensor, path):
-    image_numpy = tensor[0].cpu().float().numpy()
-    image_numpy = (np.transpose(image_numpy, (1, 2, 0)))
-    im = Image.fromarray(np.clip(image_numpy * 255.0, 0, 255.0).astype('uint8'))
+    """保存 raw 图像为 4 通道 RGGB 格式的 numpy 文件"""
+    raw_numpy = tensor[0].cpu().float().numpy()  # (4, H, W)
+    # 保存为 .npy 格式（raw 数据）
+    np.save(path.replace('.png', '.npy'), raw_numpy)
+    
+    # 可选：将 RGGB 转换为 RGB 用于可视化
+    # 简单的去马赛克：取两个 G 通道的平均
+    r = raw_numpy[0]
+    g = (raw_numpy[1] + raw_numpy[2]) / 2.0
+    b = raw_numpy[3]
+    rgb = np.stack([r, g, b], axis=0)
+    rgb = np.transpose(rgb, (1, 2, 0))
+    im = Image.fromarray(np.clip(rgb * 255.0, 0, 255.0).astype('uint8'))
     im.save(path, 'png')
 
 

@@ -25,6 +25,10 @@ parser.add_argument('--epochs', type=int, default=3000, help='epochs')
 parser.add_argument('--lr', type=float, default=0.0003, help='learning rate')
 parser.add_argument('--stage', type=int, default=3, help='epochs')
 parser.add_argument('--save', type=str, default='Rebuttal/000/', help='location of the data corpus')
+parser.add_argument('--data_path', type=str, default='./data/raw', help='path to raw images folder')
+parser.add_argument('--train_ratio', type=float, default=0.7, help='ratio of training data (default: 0.7)')
+parser.add_argument('--black_level', type=int, default=512, help='black level for raw images')
+parser.add_argument('--white_level', type=int, default=16383, help='white level for raw images')
 
 args = parser.parse_args()
 
@@ -59,9 +63,19 @@ else:
 
 
 def save_images(tensor, path):
-    image_numpy = tensor[0].cpu().float().numpy()
-    image_numpy = (np.transpose(image_numpy, (1, 2, 0)))
-    im = Image.fromarray(np.clip(image_numpy * 255.0, 0, 255.0).astype('uint8'))
+    """保存 raw 图像为 4 通道 RGGB 格式的 numpy 文件"""
+    raw_numpy = tensor[0].cpu().float().numpy()  # (4, H, W)
+    # 保存为 .npy 格式
+    np.save(path.replace('.png', '.npy'), raw_numpy)
+    
+    # 可选：将 RGGB 转换为 RGB 用于可视化
+    # 简单的去马赛克：取两个 G 通道的平均
+    r = raw_numpy[0]
+    g = (raw_numpy[1] + raw_numpy[2]) / 2.0
+    b = raw_numpy[3]
+    rgb = np.stack([r, g, b], axis=0)
+    rgb = np.transpose(rgb, (1, 2, 0))
+    im = Image.fromarray(np.clip(rgb * 255.0, 0, 255.0).astype('uint8'))
     im.save(path, 'png')
 
 
@@ -88,20 +102,55 @@ def main():
     logging.info("model size = %f", MB)
     print(MB)
 
+    # 加载所有 raw 图像路径
+    import glob
+    all_raw_files = []
+    for ext in ['*.dng', '*.DNG', '*.arw', '*.ARW', '*.nef', '*.NEF', '*.cr2', '*.CR2', '*.raw', '*.RAW']:
+        all_raw_files.extend(glob.glob(os.path.join(args.data_path, ext)))
+    all_raw_files.sort()
+    
+    # 按 7:3 划分训练集和测试集
+    num_total = len(all_raw_files)
+    num_train = int(num_total * args.train_ratio)
+    
+    train_files = all_raw_files[:num_train]
+    test_files = all_raw_files[num_train:]
+    
+    logging.info(f"Total images: {num_total}, Training: {num_train}, Testing: {num_total - num_train}")
+    
+    # 创建临时目录存放划分后的文件路径
+    train_dir = os.path.join(args.save, 'train_list')
+    test_dir = os.path.join(args.save, 'test_list')
+    os.makedirs(train_dir, exist_ok=True)
+    os.makedirs(test_dir, exist_ok=True)
+    
+    # 保存文件列表
+    with open(os.path.join(train_dir, 'train_files.txt'), 'w') as f:
+        for file in train_files:
+            f.write(file + '\n')
+    with open(os.path.join(test_dir, 'test_files.txt'), 'w') as f:
+        for file in test_files:
+            f.write(file + '\n')
 
-    train_low_data_names = 'Your training data path'
-    TrainDataset = MemoryFriendlyLoader(img_dir=train_low_data_names, task='train')
+    TrainDataset = MemoryFriendlyLoader(img_dir=args.data_path, task='train', 
+                                        black_level=args.black_level, white_level=args.white_level)
+    # 使用训练集索引
+    train_indices = list(range(num_train))
+    train_sampler = torch.utils.data.SubsetRandomSampler(train_indices)
 
-    test_low_data_names = 'Your testing data path'
-    TestDataset = MemoryFriendlyLoader(img_dir=test_low_data_names, task='test')
+    TestDataset = MemoryFriendlyLoader(img_dir=args.data_path, task='test',
+                                       black_level=args.black_level, white_level=args.white_level)
+    # 使用测试集索引
+    test_indices = list(range(num_train, num_total))
+    test_sampler = torch.utils.data.SubsetRandomSampler(test_indices)
 
     train_queue = torch.utils.data.DataLoader(
-        TrainDataset, batch_size=args.batch_size,
-        num_workers=0, shuffle=False, generator=torch.Generator(device = 'cuda'))
+        TrainDataset, batch_size=args.batch_size, sampler=train_sampler,
+        num_workers=0, generator=torch.Generator(device = 'cuda'))
 
     test_queue = torch.utils.data.DataLoader(
-        TestDataset, batch_size=1,
-        num_workers=0, shuffle=False, generator=torch.Generator(device = 'cuda'))
+        TestDataset, batch_size=1, sampler=test_sampler,
+        num_workers=0, generator=torch.Generator(device = 'cuda'))
 
     total_step = 0
     for epoch in range(args.epochs):

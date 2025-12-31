@@ -16,7 +16,7 @@ class EnhanceNetwork_Ha(nn.Module):
 
         kernel_size = 3
         self.in_conv = nn.Sequential(
-            default_conv(dim_in=3, dim_out=channels, kernel_size=kernel_size, bias=True),
+            default_conv(dim_in=4, dim_out=channels, kernel_size=kernel_size, bias=True),
             nn.ReLU()
         )
 
@@ -29,7 +29,7 @@ class EnhanceNetwork_Ha(nn.Module):
             self.blocks.append(conv)
 
         self.out_conv = nn.Sequential(
-            default_conv(dim_in=channels, dim_out=3, kernel_size=kernel_size, bias=True),
+            default_conv(dim_in=channels, dim_out=4, kernel_size=kernel_size, bias=True),
             nn.Sigmoid()
         )
 
@@ -51,7 +51,7 @@ class EnhanceNetwork_Hb(nn.Module):
         super(EnhanceNetwork_Hb, self).__init__()
         kernel_size = 3
         self.in_conv = nn.Sequential(
-            default_conv(dim_in=3, dim_out=channels, kernel_size=kernel_size, bias=True),
+            default_conv(dim_in=4, dim_out=channels, kernel_size=kernel_size, bias=True),
             nn.ReLU()
         )
 
@@ -64,7 +64,7 @@ class EnhanceNetwork_Hb(nn.Module):
             self.blocks.append(conv)
 
         self.out_conv = nn.Sequential(
-            default_conv(dim_in=channels, dim_out=3, kernel_size=kernel_size, bias=True),
+            default_conv(dim_in=channels, dim_out=4, kernel_size=kernel_size, bias=True),
         )
 
     def forward(self, input):
@@ -84,7 +84,7 @@ class CalibrateNetwork(nn.Module):
         self.layers = layers
 
         self.in_conv = nn.Sequential(
-            default_conv(dim_in=3, dim_out=channels, kernel_size=kernel_size, bias=True),
+            default_conv(dim_in=4, dim_out=channels, kernel_size=kernel_size, bias=True),
             nn.ReLU()
         )
 
@@ -97,7 +97,7 @@ class CalibrateNetwork(nn.Module):
             self.blocks.append(convs)
 
         self.out_conv = nn.Sequential(
-            default_conv(dim_in=channels, dim_out=3, kernel_size=kernel_size, bias=True),
+            default_conv(dim_in=channels, dim_out=4, kernel_size=kernel_size, bias=True),
         )
 
     def forward(self, input):
