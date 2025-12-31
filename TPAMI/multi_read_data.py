@@ -51,6 +51,11 @@ class MemoryFriendlyLoader(torch.utils.data.Dataset):
             elif raw_data.ndim == 2:
                 # (H, W) -> (H/2, W/2, 4)
                 h, w = raw_data.shape
+                # Ensure even dimensions
+                h = h - (h % 2)
+                w = w - (w % 2)
+                raw_data = raw_data[:h, :w]
+
                 rggb = np.zeros((h // 2, w // 2, 4), dtype=np.float32)
                 rggb[:, :, 0] = raw_data[0::2, 0::2]  # R
                 rggb[:, :, 1] = raw_data[0::2, 1::2]  # G1
@@ -74,6 +79,10 @@ class MemoryFriendlyLoader(torch.utils.data.Dataset):
             # 获取 Bayer 模式
             # 大多数相机使用 RGGB 模式
             h, w = raw_data.shape
+            # Ensure even dimensions
+            h = h - (h % 2)
+            w = w - (w % 2)
+            raw_data = raw_data[:h, :w]
             
             # 将 Bayer 数据重组为 4 通道 (R, G1, G2, B)
             rggb = np.zeros((h // 2, w // 2, 4), dtype=np.float32)
