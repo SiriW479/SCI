@@ -20,6 +20,9 @@ class SmoothLoss(nn.Module):
         self.sigma = 10
 
     def rgb2yCbCr(self, input_im):
+        _, c, _, _ = input_im.shape
+        if c == 4:
+            return input_im
         im_flat = input_im.contiguous().view(-1, 3).float()
         mat = torch.Tensor([[0.257, -0.148, 0.439], [0.564, -0.291, -0.368], [0.098, 0.439, -0.071]]).cuda()
         bias = torch.Tensor([16.0 / 255.0, 128.0 / 255.0, 128.0 / 255.0]).cuda()
