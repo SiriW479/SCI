@@ -25,12 +25,16 @@ parser.add_argument('--epochs', type=int, default=3000, help='epochs')
 parser.add_argument('--lr', type=float, default=0.0003, help='learning rate')
 parser.add_argument('--stage', type=int, default=3, help='epochs')
 parser.add_argument('--save', type=str, default='Rebuttal/000/', help='location of the data corpus')
-parser.add_argument('--data_path', type=str, default='~/autodl_tmp/raw', help='path to raw images folder')
+parser.add_argument('--data_path', type=str, default='~/autodl-tmp/raw', help='path to raw images folder')
 parser.add_argument('--train_ratio', type=float, default=0.7, help='ratio of training data (default: 0.7)')
 parser.add_argument('--black_level', type=int, default=512, help='black level for raw images')
 parser.add_argument('--white_level', type=int, default=16383, help='white level for raw images')
 
 args = parser.parse_args()
+
+args.data_path = os.path.expanduser(args.data_path)
+if not os.path.exists(args.data_path):
+    logging.warning("Data path does not exist: %s", args.data_path)
 
 os.environ["CUDA_VISIBLE_DEVICES"] = args.gpu
 
@@ -105,11 +109,16 @@ def main():
     # 加载所有 raw 图像路径
     import glob
     all_raw_files = []
+    logging.info("Searching for images in: %s", args.data_path)
     for root, dirs, names in os.walk(args.data_path):
         for name in names:
             if name.lower().endswith(('.dng', '.arw', '.nef', '.cr2', '.raw', '.npy')):
                 all_raw_files.append(os.path.join(root, name))
     all_raw_files.sort()
+    
+    if len(all_raw_files) == 0:
+        logging.error("No files found in %s", args.data_path)
+        sys.exit(1)
     
     # 按 7:3 划分训练集和测试集
     num_total = len(all_raw_files)
