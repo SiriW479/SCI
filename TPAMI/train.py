@@ -105,8 +105,10 @@ def main():
     # 加载所有 raw 图像路径
     import glob
     all_raw_files = []
-    for ext in ['*.dng', '*.DNG', '*.arw', '*.ARW', '*.nef', '*.NEF', '*.cr2', '*.CR2', '*.raw', '*.RAW']:
-        all_raw_files.extend(glob.glob(os.path.join(args.data_path, ext)))
+    for root, dirs, names in os.walk(args.data_path):
+        for name in names:
+            if name.lower().endswith(('.dng', '.arw', '.nef', '.cr2', '.raw', '.npy')):
+                all_raw_files.append(os.path.join(root, name))
     all_raw_files.sort()
     
     # 按 7:3 划分训练集和测试集

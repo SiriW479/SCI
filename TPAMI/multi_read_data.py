@@ -23,7 +23,7 @@ class MemoryFriendlyLoader(torch.utils.data.Dataset):
         for root, dirs, names in os.walk(self.low_img_dir):
             for name in names:
                 # 支持常见的 raw 格式
-                if name.lower().endswith(('.dng', '.arw', '.nef', '.cr2', '.raw')):
+                if name.lower().endswith(('.dng', '.arw', '.nef', '.cr2', '.raw', '.npy')):
                     self.train_low_data_names.append(os.path.join(root, name))
 
         self.train_low_data_names.sort()
@@ -31,6 +31,35 @@ class MemoryFriendlyLoader(torch.utils.data.Dataset):
 
     def load_raw_image(self, file):
         """加载 raw 图像并转换为 RGGB 4 通道格式"""
+        if file.lower().endswith('.npy'):
+            raw_data = np.load(file)
+            
+            # Normalize if needed
+            if raw_data.dtype != np.float32 and raw_data.dtype != np.float64:
+                 raw_data = raw_data.astype(np.float32)
+                 raw_data = np.maximum(raw_data - self.black_level, 0)
+                 raw_data = raw_data / (self.white_level - self.black_level)
+                 raw_data = np.clip(raw_data, 0, 1)
+            elif raw_data.max() > 1.0:
+                 raw_data = np.maximum(raw_data - self.black_level, 0)
+                 raw_data = raw_data / (self.white_level - self.black_level)
+                 raw_data = np.clip(raw_data, 0, 1)
+
+            if raw_data.ndim == 3 and raw_data.shape[0] == 4:
+                # (4, H, W) -> (H, W, 4)
+                return np.transpose(raw_data, (1, 2, 0))
+            elif raw_data.ndim == 2:
+                # (H, W) -> (H/2, W/2, 4)
+                h, w = raw_data.shape
+                rggb = np.zeros((h // 2, w // 2, 4), dtype=np.float32)
+                rggb[:, :, 0] = raw_data[0::2, 0::2]  # R
+                rggb[:, :, 1] = raw_data[0::2, 1::2]  # G1
+                rggb[:, :, 2] = raw_data[1::2, 0::2]  # G2
+                rggb[:, :, 3] = raw_data[1::2, 1::2]  # B
+                return rggb
+            else:
+                return raw_data
+
         with rawpy.imread(file) as raw:
             # 获取 raw 数据
             raw_data = raw.raw_image.copy().astype(np.float32)
