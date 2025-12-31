@@ -32,7 +32,23 @@ parser.add_argument('--white_level', type=int, default=16383, help='white level 
 
 args = parser.parse_args()
 
-args.data_path = os.path.expanduser(args.data_path)
+# Robust path finding
+if args.data_path.startswith('~'):
+    args.data_path = os.path.expanduser(args.data_path)
+
+if not os.path.exists(args.data_path):
+    # Try common locations
+    potential_paths = [
+        '/root/autodl-tmp/raw',
+        os.path.abspath(os.path.join(os.path.dirname(__file__), '../../../raw')),
+        os.path.abspath(os.path.join(os.getcwd(), '../../../raw'))
+    ]
+    for p in potential_paths:
+        if os.path.exists(p):
+            args.data_path = p
+            logging.info(f"Found data path at: {args.data_path}")
+            break
+
 if not os.path.exists(args.data_path):
     logging.warning("Data path does not exist: %s", args.data_path)
 
