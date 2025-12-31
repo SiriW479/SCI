@@ -219,8 +219,10 @@ def main():
             nn.utils.clip_grad_norm_(model.parameters(), 5)
             
             losses.append(loss.item())
-            logging.info('train-epoch-{:0>3d}-step-{:0>5d}  Tloss:{:<8.4f} loss1:{:<8.4f} loss2:{:<8.4f} loss3:{:<8.4f}'\
-                         .format(epoch, batch_idx, loss,loss1,loss2,loss3))
+            
+            phase = "A" if total_step % 10 < 7 else "B"
+            logging.info('Epoch[{:03d}/{:03d}] Step[{:04d}] Phase[{}] Total_Loss:{:.6f} Loss1:{:.6f} Loss2:{:.6f} Loss3:{:.6f}'.format(
+                epoch, args.epochs, batch_idx, phase, loss.item(), loss1.item(), loss2.item(), loss3.item()))
 
             if total_step % 500 == 0 and total_step != 0:
                 logging.info('train %03d %f', epoch, loss)
